@@ -1,3 +1,4 @@
+# main.py
 import streamlit as st
 from src.sidebar import render_sidebar
 from src.engine import run_simulation
@@ -42,13 +43,25 @@ def main():
             st.write(f"**Unlock:** {format_currency(inputs.spend_unlock)}/m")
             st.write(f"**Late:** {format_currency(inputs.spend_late)}/m")
 
-            # CPF LIFE DISPLAY
+            # CPF LIFE DISPLAY WITH TODAY'S VALUE FIX
             payout_row = df_results[df_results["Age"] == inputs.payout_age]
             if not payout_row.empty:
                 annual_payout = payout_row.iloc[0]["CPF_Life_Payout_Annual"]
                 monthly_payout = annual_payout / 12
-                st.write(f"**CPF Life:** {format_currency(monthly_payout)}/m")
-                st.caption(f"*(Nominal starting value at Age {inputs.payout_age})*")
+
+                # Calculate Real Value (Today's Dollars)
+                years_to_payout = inputs.payout_age - inputs.current_age
+                real_monthly_payout = monthly_payout / (
+                    (1 + inputs.inflation_rate) ** years_to_payout
+                )
+
+                st.write(f"**CPF Life (Nominal):** {format_currency(monthly_payout)}/m")
+                st.write(
+                    f"**CPF Life (Today's Value):** {format_currency(real_monthly_payout)}/m"
+                )
+                st.caption(
+                    f"*(Buying power in today's dollars at Age {inputs.payout_age})*"
+                )
 
         with c4:
             st.markdown("### 🏠 Liabilities & Rates")
@@ -75,7 +88,6 @@ def main():
 
     with col1:
         st.subheader("📊 Net Worth Projection")
-        # FIXED: Replaced use_container_width=True with width="stretch"
         st.plotly_chart(
             create_nav_chart(df_results, inputs.retire_age), width="stretch"
         )
@@ -84,7 +96,6 @@ def main():
         st.caption(
             "This chart shows exactly how much money is 'unlocked' and available to spend in each phase."
         )
-        # FIXED: Replaced use_container_width=True with width="stretch"
         st.plotly_chart(
             create_liquidity_runway(df_results, inputs.retire_age, inputs.payout_age),
             width="stretch",

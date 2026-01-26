@@ -1,3 +1,4 @@
+# src/engine.py
 import pandas as pd
 import numpy_financial as npf
 from src.models import SimulationInputs
@@ -135,26 +136,35 @@ def run_simulation(inputs: SimulationInputs) -> pd.DataFrame:
         if inputs.car_start_age <= age < (inputs.car_start_age + inputs.car_tenure):
             curr_cash -= car_pmt
 
-        # 5. RA Logic
+        # 5. SMARTER RA Logic: Liquidation of Investments at 55
         if age == 55 and not frs_locked:
             needed = inputs.ra_target
-            if curr_sa >= needed:
-                curr_sa -= needed
-                frs_balance = needed
-                needed = 0
-            else:
-                frs_balance += curr_sa
-                needed -= curr_sa
-                curr_sa = 0
+
+            # --- Take from SA (Liquid then Invested) ---
+            take_sa = min(curr_sa, needed)
+            curr_sa -= take_sa
+            frs_balance += take_sa
+            needed -= take_sa
+
+            if needed > 0 and curr_sa_inv > 0:
+                take_sa_inv = min(curr_sa_inv, needed)
+                curr_sa_inv -= take_sa_inv
+                frs_balance += take_sa_inv
+                needed -= take_sa_inv
+
+            # --- Take from OA (Liquid then Invested) ---
             if needed > 0:
-                if curr_oa >= needed:
-                    curr_oa -= needed
-                    frs_balance += needed
-                    needed = 0
-                else:
-                    frs_balance += curr_oa
-                    needed -= curr_oa
-                    curr_oa = 0
+                take_oa = min(curr_oa, needed)
+                curr_oa -= take_oa
+                frs_balance += take_oa
+                needed -= take_oa
+
+                if needed > 0 and curr_oa_inv > 0:
+                    take_oa_inv = min(curr_oa_inv, needed)
+                    curr_oa_inv -= take_oa_inv
+                    frs_balance += take_oa_inv
+                    needed -= take_oa_inv
+
             frs_locked = True
 
         if frs_locked and age < inputs.payout_age:
@@ -180,7 +190,7 @@ def run_simulation(inputs: SimulationInputs) -> pd.DataFrame:
                 + curr_sa_inv
                 + frs_balance,
                 "Phase_Target": target_spend_today,
-                "CPF_Life_Payout_Annual": cpf_life_annual_payout,  # Exported for UI
+                "CPF_Life_Payout_Annual": cpf_life_annual_payout,
             }
         )
 
