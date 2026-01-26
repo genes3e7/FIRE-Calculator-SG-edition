@@ -1,0 +1,8 @@
+# requirements-dev.in
+-c requirements.txt
+-r requirements.in
+
+pytest
+pytest-cov
+ruff
+mypy
