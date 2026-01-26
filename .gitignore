@@ -57,3 +57,4 @@ test-results/
 # --- Project Specific ---
 # User requested output file
 output.txt
+fire_config.json

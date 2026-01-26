@@ -75,17 +75,19 @@ def main():
 
     with col1:
         st.subheader("📊 Net Worth Projection")
+        # FIXED: Replaced use_container_width=True with width="stretch"
         st.plotly_chart(
-            create_nav_chart(df_results, inputs.retire_age), use_container_width=True
+            create_nav_chart(df_results, inputs.retire_age), width="stretch"
         )
 
         st.subheader("🛣️ Liquidity Runway (The 3 Phases)")
         st.caption(
             "This chart shows exactly how much money is 'unlocked' and available to spend in each phase."
         )
+        # FIXED: Replaced use_container_width=True with width="stretch"
         st.plotly_chart(
             create_liquidity_runway(df_results, inputs.retire_age, inputs.payout_age),
-            use_container_width=True,
+            width="stretch",
         )
 
     with col2:
