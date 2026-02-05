@@ -24,8 +24,6 @@ charset-normalizer==3.4.4
     # via requests
 click==8.3.1
     # via streamlit
-colorama==0.4.6
-    # via click
 gitdb==4.0.12
     # via gitpython
 gitpython==3.1.46
@@ -46,7 +44,7 @@ narwhals==2.15.0
     # via
     #   altair
     #   plotly
-numpy==2.4.1
+numpy==2.2.6
     # via
     #   numpy-financial
     #   pandas
@@ -67,7 +65,7 @@ pillow==12.1.0
     # via streamlit
 plotly==6.5.2
     # via -r requirements.in
-protobuf==3.20.3
+protobuf==5.29.6
     # via streamlit
 pyarrow==23.0.0
     # via streamlit
@@ -110,6 +108,7 @@ typing-extensions==4.15.0
     #   altair
     #   pydantic
     #   pydantic-core
+    #   referencing
     #   streamlit
     #   typing-inspection
 typing-inspection==0.4.2
