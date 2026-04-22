@@ -1,8 +1,15 @@
-# src/defaults.py
+"""Default values and configurations for the FIRE Calculator.
+
+Provides sensible defaults for a typical Singaporean financial profile.
+"""
 
 
 def get_singapore_default_inputs() -> dict:
-    """Returns a dictionary of standard values for a typical SG FIRE starter."""
+    """Returns a dictionary of standard values for a typical SG FIRE starter.
+
+    Returns:
+        A dictionary containing default values for SimulationInputs.
+    """
     return {
         # Personal
         "current_age": 30,

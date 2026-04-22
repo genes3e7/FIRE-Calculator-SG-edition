@@ -1,9 +1,23 @@
+"""Visualization functions for FIRE simulation results.
+
+Uses Plotly to generate interactive charts for net worth and liquidity analysis.
+"""
+
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import pandas as pd
 
 
-def create_nav_chart(df: pd.DataFrame, retire_age: int):
+def create_nav_chart(df: pd.DataFrame, retire_age: int) -> go.Figure:
+    """Generates an area chart showing the evolution of asset classes over time.
+
+    Args:
+        df: Simulation results DataFrame.
+        retire_age: The age at which retirement starts, for annotation.
+
+    Returns:
+        A Plotly Figure object containing the Net Worth area chart.
+    """
     # Standard Net Worth Chart
     fig = px.area(
         df,
@@ -31,14 +45,33 @@ def create_nav_chart(df: pd.DataFrame, retire_age: int):
     return fig
 
 
-def create_liquidity_runway(df: pd.DataFrame, retire_age: int, payout_age: int = 65):
+def create_liquidity_runway(
+    df: pd.DataFrame, retire_age: int, payout_age: int = 65
+) -> go.Figure:
+    """Generates a liquidity runway chart showing accessible funds after retirement.
+
+    Highlights three distinct phases:
+    1. Bridge (Retirement to 55): Only cash is accessible.
+    2. Unlock (55 to Payout Age): Cash and CPF surplus are accessible.
+    3. CPF Life (Payout Age onwards): CPF Life payouts supplement accessibility.
+
+    Args:
+        df: Simulation results DataFrame.
+        retire_age: The age at which retirement starts.
+        payout_age: The age at which CPF Life payouts begin.
+
+    Returns:
+        A Plotly Figure object containing the Liquidity Runway chart.
+    """
     # 1. Prepare Data
     plot_df = df[df["Age"] >= retire_age].copy()
 
     plot_df["Accessible_Funds"] = plot_df.apply(
-        lambda row: row["Liquid_Cash_Balance"]
-        if row["Age"] < 55
-        else (row["Liquid_Cash_Balance"] + row["OA_Total"] + row["SA_Total"]),
+        lambda row: (
+            row["Liquid_Cash_Balance"]
+            if row["Age"] < 55
+            else (row["Liquid_Cash_Balance"] + row["OA_Total"] + row["SA_Total"])
+        ),
         axis=1,
     )
 

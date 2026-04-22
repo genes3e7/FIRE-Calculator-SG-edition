@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "**" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+      id: filter
+      with:
+        filters: |
+          python:
+            - '**.py'
+            - 'uv.lock'
+            - 'pyproject.toml'
+            - '.github/workflows/ci.yml'
+
+  test-matrix:
+    needs: check-changes
+    if: needs.check-changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.python-version == '3.15-dev' }}
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15-dev"]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        python-version: ${{ matrix.python-version }}
+        activate-environment: true
+    - name: Install dependencies
+      run: uv sync --all-extras
+    - name: Test with Pytest
+      run: uv run --frozen pytest tests/
+    - name: Record Success
+      if: success()
+      run: echo "${{ matrix.python-version }}" > python_version_${{ matrix.python-version }}.txt
+    - name: Upload Success Artifact
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: passed-version-${{ matrix.python-version }}
+        path: python_version_${{ matrix.python-version }}.txt
+
+  finalize-updates:
+    needs: test-matrix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: |
+      needs.test-matrix.result == 'success' &&
+      (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ github.event.pull_request.head.ref || github.ref }}
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        pattern: passed-version-*
+        merge-multiple: true
+    - name: Determine Supported Range
+      id: versions
+      run: |
+        if [ -z "$(ls -A artifacts)" ]; then
+           exit 1
+        fi
+        # Exclude experimental/allowed-failure versions from the stable badge range
+        # Create the sorted file inside the ignored artifacts folder
+        (cat artifacts/*.txt | grep -vF -- "3.15-dev" || true) | sort -V > artifacts/sorted_versions.txt
+
+        if [ ! -s artifacts/sorted_versions.txt ]; then
+           echo "No stable versions found after filtering. Skipping README update."
+           exit 0
+        fi
+
+        echo "MIN_VER=$(head -n 1 artifacts/sorted_versions.txt)" >> $GITHUB_ENV
+        echo "MAX_VER=$(tail -n 1 artifacts/sorted_versions.txt)" >> $GITHUB_ENV
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        activate-environment: true
+    - name: Install dependencies
+      run: uv sync --all-extras --frozen
+    - name: Update README Tree & Versions
+      run: |
+        uv run python tools/update_readme.py "${{ env.MIN_VER }}" "${{ env.MAX_VER }}"
+    - name: Ruff Format & Fix
+      run: |
+        uv run ruff check . --fix
+        uv run ruff format .
+    - name: Verify Builder
+      run: |
+        uv run python build.py
+    - name: Commit and Push changes
+      env:
+        REF_NAME: ${{ github.head_ref || github.ref_name }}
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add -u
+        if ! git diff --staged --quiet; then
+          git commit -m "chore: professional standards updates and CI maintenance"
+          git push origin HEAD:"$REF_NAME"
+        fi

@@ -1,11 +1,20 @@
-# src/utils.py
+"""Utility functions for the FIRE Calculator.
+
+Commonly used formatting and helper functions.
+"""
 
 
 def format_currency(value: float) -> str:
-    """
-    Dynamically formats currency:
+    """Dynamically formats currency values for display.
+
     - >= 1M: "$1.25M"
     - < 1M:  "$500k"
+
+    Args:
+        value: The numeric currency value to format.
+
+    Returns:
+        A string representation of the currency.
     """
     if value >= 1_000_000:
         return f"${value / 1_000_000:.2f}M"

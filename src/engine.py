@@ -1,10 +1,33 @@
-# src/engine.py
-import pandas as pd
+"""Simulation engine for FIRE Calculator.
+
+Handles the core logic of projecting financial balances across different
+lifecycle phases, accounting for inflation, growth, debt servicing, and CPF rules.
+"""
+
 import numpy_financial as npf
+import pandas as pd
+
+from src.constants import OA_BASE_RATE, SA_BASE_RATE
 from src.models import SimulationInputs
-from src.constants import SA_BASE_RATE, OA_BASE_RATE
+
 
 def run_simulation(inputs: SimulationInputs) -> pd.DataFrame:
+    """Runs a year-by-year financial simulation based on the provided inputs.
+
+    The simulation covers:
+    - Nominal spending adjustments based on inflation.
+    - Asset growth for Cash, CPF OA, and CPF SA.
+    - Automated optimal withdrawals from lowest-yield accounts first (post-age 55).
+    - Liability servicing (Housing and Car loans).
+    - CPF Retirement Account (RA) logic and CPF Life payout estimation.
+
+    Args:
+        inputs: A SimulationInputs object containing all user parameters.
+
+    Returns:
+        A pandas DataFrame where each row represents a year in the simulation,
+        containing balances for Cash, OA, SA, RA, and total Net Worth.
+    """
     ages = list(range(inputs.current_age, inputs.life_expectancy + 1))
     data = []
 
@@ -88,16 +111,21 @@ def run_simulation(inputs: SimulationInputs) -> pd.DataFrame:
                 for source in sources:
                     if spend_needed <= 0:
                         break
-                    
+
                     acc_id, bal, apy = source
                     take = min(bal, spend_needed)
-                    
-                    if acc_id == "cash": curr_cash -= take
-                    elif acc_id == "oa_inv": curr_oa_inv -= take
-                    elif acc_id == "oa_liq": curr_oa -= take
-                    elif acc_id == "sa_liq": curr_sa -= take
-                    elif acc_id == "sa_inv": curr_sa_inv -= take
-                    
+
+                    if acc_id == "cash":
+                        curr_cash -= take
+                    elif acc_id == "oa_inv":
+                        curr_oa_inv -= take
+                    elif acc_id == "oa_liq":
+                        curr_oa -= take
+                    elif acc_id == "sa_liq":
+                        curr_sa -= take
+                    elif acc_id == "sa_inv":
+                        curr_sa_inv -= take
+
                     spend_needed -= take
 
         # 4. Liabilities (CPF Usage is allowed for Housing before 55)
@@ -129,17 +157,22 @@ def run_simulation(inputs: SimulationInputs) -> pd.DataFrame:
         if age == 55 and not frs_locked:
             needed = inputs.ra_target
             for acc in ["sa_liq", "sa_inv", "oa_liq", "oa_inv"]:
-                if needed <= 0: break
-                
+                if needed <= 0:
+                    break
+
                 if acc == "sa_liq":
-                    take = min(curr_sa, needed); curr_sa -= take
+                    take = min(curr_sa, needed)
+                    curr_sa -= take
                 elif acc == "sa_inv":
-                    take = min(curr_sa_inv, needed); curr_sa_inv -= take
+                    take = min(curr_sa_inv, needed)
+                    curr_sa_inv -= take
                 elif acc == "oa_liq":
-                    take = min(curr_oa, needed); curr_oa -= take
+                    take = min(curr_oa, needed)
+                    curr_oa -= take
                 elif acc == "oa_inv":
-                    take = min(curr_oa_inv, needed); curr_oa_inv -= take
-                
+                    take = min(curr_oa_inv, needed)
+                    curr_oa_inv -= take
+
                 frs_balance += take
                 needed -= take
             frs_locked = True
@@ -153,15 +186,22 @@ def run_simulation(inputs: SimulationInputs) -> pd.DataFrame:
             cpf_life_annual_payout = frs_balance * base_payout_rate * deferral_bonus
             frs_balance = 0.0
 
-        data.append({
-            "Age": age,
-            "Liquid_Cash_Balance": max(0, curr_cash),
-            "OA_Total": curr_oa + curr_oa_inv,
-            "SA_Total": curr_sa + curr_sa_inv,
-            "FRS_RA": frs_balance,
-            "Net_Worth": max(0, curr_cash) + curr_oa + curr_oa_inv + curr_sa + curr_sa_inv + frs_balance,
-            "Phase_Target": target_spend_today,
-            "CPF_Life_Payout_Annual": cpf_life_annual_payout,
-        })
+        data.append(
+            {
+                "Age": age,
+                "Liquid_Cash_Balance": max(0, curr_cash),
+                "OA_Total": curr_oa + curr_oa_inv,
+                "SA_Total": curr_sa + curr_sa_inv,
+                "FRS_RA": frs_balance,
+                "Net_Worth": max(0, curr_cash)
+                + curr_oa
+                + curr_oa_inv
+                + curr_sa
+                + curr_sa_inv
+                + frs_balance,
+                "Phase_Target": target_spend_today,
+                "CPF_Life_Payout_Annual": cpf_life_annual_payout,
+            }
+        )
 
     return pd.DataFrame(data)

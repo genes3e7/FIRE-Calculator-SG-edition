@@ -1,9 +1,10 @@
 import pytest
-from src.models import SimulationInputs
+
 from src.engine import run_simulation
+from src.models import SimulationInputs
 
 # FIXED: Imported create_liquidity_runway instead of create_lifestyle_chart
-from src.plotting import create_nav_chart, create_liquidity_runway
+from src.plotting import create_liquidity_runway, create_nav_chart
 
 
 def test_full_simulation_flow():

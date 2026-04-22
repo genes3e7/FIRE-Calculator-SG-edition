@@ -1,10 +1,14 @@
 # tests/test_engine.py
 import pytest
+
 from src.engine import run_simulation
 
 
 def test_simulation_duration(default_inputs):
-    """Ensure dataframe has exactly one row per year from current_age to life_expectancy."""
+    """Ensure dataframe has exactly one row per year from current_age.
+
+    Range: current_age to life_expectancy.
+    """
     df = run_simulation(default_inputs)
     expected_years = default_inputs.life_expectancy - default_inputs.current_age + 1
     assert len(df) == expected_years
@@ -41,7 +45,7 @@ def test_retirement_stops_inflows(default_inputs):
     default_inputs.life_expectancy = 61
 
     # FIXED: Set spending to 0 so we can isolate the "Inflow Stopping" logic.
-    # Otherwise, the engine subtracts living expenses ($3500*12 = 42k), causing the mismatch.
+    # Otherwise, the engine subtracts living expenses, causing the mismatch.
     default_inputs.spend_unlock = 0
     default_inputs.spend_late = 0
 
@@ -113,3 +117,46 @@ def test_frs_lock_at_55(default_inputs):
     # Check SA was drained/reduced
     # SA started at 150k. FRS took 100k. SA should be ~50k (plus growth)
     assert row_55["SA_Total"] < 100000  # It should have dropped significantly
+
+
+def test_car_loan_logic(default_inputs):
+    """Test that car loan reduces cash balance."""
+    default_inputs.car_loan_amt = 50000
+    default_inputs.car_start_age = 30
+    default_inputs.car_tenure = 5
+    default_inputs.car_rate = 0.0278
+    default_inputs.car_downpayment = 10000
+
+    df = run_simulation(default_inputs)
+
+    # Cash should be lower than if no car loan
+    cash_with_car = df.iloc[0]["Liquid_Cash_Balance"]
+
+    default_inputs.car_loan_amt = 0
+    default_inputs.car_downpayment = 0
+    df_no_car = run_simulation(default_inputs)
+    cash_no_car = df_no_car.iloc[0]["Liquid_Cash_Balance"]
+
+    assert cash_with_car < cash_no_car
+
+
+def test_ra_target_exhaustion(default_inputs):
+    """Test RA target that exhausts SA and moves to OA (liq and inv)."""
+    default_inputs.current_age = 54
+    default_inputs.life_expectancy = 56
+    default_inputs.ra_target = 500000
+    default_inputs.sa_bal = 100000
+    default_inputs.sa_inv = 0
+    default_inputs.oa_bal = 100000
+    default_inputs.oa_inv = 200000
+    default_inputs.cash_inv = 500000
+
+    df = run_simulation(default_inputs)
+    row_55 = df[df["Age"] == 55].iloc[0]
+
+    # Total CPF = 100k (SA) + 100k (OA liq) + 200k (OA inv) = 400k
+    # Target = 500k
+    # Should take all 400k (plus growth from 54 to 55).
+    assert row_55["FRS_RA"] >= 400000
+    assert row_55["SA_Total"] == 0
+    assert row_55["OA_Total"] == 0

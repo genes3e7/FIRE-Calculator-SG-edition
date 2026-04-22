@@ -1,10 +1,26 @@
-import streamlit as st
+"""Sidebar component for the FIRE Calculator.
+
+Handles user inputs, session state, and data import/export functionality.
+"""
+
 import json
-from src.models import SimulationInputs
+
+import streamlit as st
+
 from src.defaults import get_singapore_default_inputs
+from src.models import SimulationInputs
 
 
 def render_sidebar() -> SimulationInputs:
+    """Renders the Streamlit sidebar for user configuration.
+
+    Initializes session state with defaults if necessary, provides data manager
+    tools (reset, download, upload), and displays input fields for personal details,
+    lifestyle spending, CPF settings, assets, and liabilities.
+
+    Returns:
+        A SimulationInputs object containing all values from the sidebar.
+    """
     # --- HELPER: Initialize Session State ---
     if "current_age" not in st.session_state:
         defaults = get_singapore_default_inputs()
@@ -15,7 +31,7 @@ def render_sidebar() -> SimulationInputs:
         st.title("⚙️ Controls")
 
         # --- SECTION 0: DATA MANAGER ---
-        with st.expander("📂 Import / Export / Defaults", expanded=False):
+        with st.expander("📁 Import / Export / Defaults", expanded=False):
             if st.button("Reset to Typical SG Stats"):
                 defaults = get_singapore_default_inputs()
                 for key, value in defaults.items():
@@ -83,7 +99,7 @@ def render_sidebar() -> SimulationInputs:
         st.number_input("Monthly Cash Top-up", 0, 50000, key="cash_topup")
 
         # CPF OA
-        st.subheader("🏠 CPF OA")
+        st.subheader("🏢 CPF OA")
         st.caption("Liquid earns 2.5%. Invested earns custom rate.")
 
         o_liq, o_inv = st.columns(2)
