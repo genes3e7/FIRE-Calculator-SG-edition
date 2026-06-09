@@ -125,7 +125,7 @@ protobuf==5.29.6
     # via
     #   -c requirements.txt
     #   streamlit
-pyarrow==23.0.0
+pyarrow==23.0.1
     # via
     #   -c requirements.txt
     #   streamlit
